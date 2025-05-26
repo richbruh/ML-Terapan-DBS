@@ -180,10 +180,9 @@ Model LSTM juga memiliki performa yang baik dengan metrik error yang hanya sedik
 Note: LSTM juga menunjukkan akurasi tinggi, dengan sedikit lag pada beberapa titik perubahan tajam
 
 #### Prophet
-- **MAE**: 0.2076 
-- **RMSE**: 0.2868  
-- **Accuracy**: 65.46%
-
+- **MAE**: 0.2162 
+- **RMSE**: 0.2901 
+- **Accuracy**: 64.03%
 Prophet memberikan error yang jauh lebih tinggi dibandingkan dengan XGBoost dan LSTM. Pendekatan univariat dari Prophet, yang mengandalkan tren dan seasonalitas, tampaknya kurang mampu menangkap fluktuasi harga jangka pendek yang kompleks.
 
 Prophet menghasilkan prediksi yang lebih halus dan kurang akurat, gagal menangkap volatilitas dan fluktuasi harga yang tajam
