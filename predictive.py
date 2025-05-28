@@ -61,6 +61,7 @@ df = pd.read_csv('cardano.csv')
 Exploratory Data Analysis adalah proses investigasi awal untuk melakukan analisis dari data secara karakteristik, pola, outlier, dan asumsi pada data.
 
 ### 3.2.1 EDA - Deskripsi Variabel 
+Dataset Cardano terdiri dari 2446 baris dan 9 kolom yang mencakup data historis harga Cardano (ADA) dengan granularitas harian. Data ini diambil dari Bitget Exchange dan mencakup periode dari tahun 2018 hingga 2025.
 """
 
 print(df)
@@ -121,6 +122,8 @@ print(df.duplicated().sum())
 
 """
 ### 3.2.2 Menangani Missing Values dan Duplicates
+
+Dalam analisis data, keberadaan nilai yang hilang (missing values) dan data duplikat (duplicates) dapat memengaruhi kualitas hasil analisis dan kinerja model. Untuk mendapatkan model prediksi yang akurat, perlu dilakukan penanganan terhadap kedua masalah ini pada tahap pra-pemrosesan data.
 """
 
 # Set visualization style and size
@@ -143,6 +146,29 @@ print(f"Total missing values: {df.isnull().sum().sum()}")
 
 """
 #### 3.2.3 Visualisasi Data Harga dan Tren
+
+**Analisis Pergerakan Harga Cardano**
+Visualisasi data harga merupakan langkah penting dalam analisis time series karena membantu kita mengidentifikasi pola dan tren yang mungkin tidak terlihat dalam data mentah. Untuk memahami dinamika pergerakan harga Cardano (ADA), kita menggunakan dua jenis visualisasi utama dengan indikator teknikal:
+
+**Moving Averages (MA)**
+Moving Average adalah indikator teknikal yang sering digunakan untuk menghaluskan fluktuasi harga jangka pendek dan mengidentifikasi tren yang sedang berlangsung. Dalam visualisasi pertama, kita menampilkan:
+
+Harga penutupan (Close Price): Menunjukkan nilai aktual harga Cardano setiap hari
+- MA 7-hari: Rata-rata harga selama 7 hari terakhir, sensitif terhadap perubahan jangka pendek
+- MA 30-hari: Rata-rata harga selama 30 hari terakhir, menangkap tren jangka menengah
+- MA 90-hari: Rata-rata harga selama 90 hari terakhir, menunjukkan tren jangka panjang
+
+**Exponential Moving Averages (EMA)**
+EMA adalah variasi dari Moving Average yang memberikan bobot lebih besar pada data terkini, sehingga lebih responsif terhadap perubahan harga terbaru. Dalam visualisasi kedua, kita menampilkan:
+
+Harga penutupan (Close Price): Data harga aktual
+- EMA 7-hari: EMA dengan periode 7 hari, sangat responsif terhadap perubahan harga terbaru
+- EMA 30-hari: EMA dengan periode 30 hari untuk tren menengah
+- EMA 90-hari: EMA dengan periode 90 hari untuk tren jangka panjang
+
+Formula dasar untuk menghitung EMA adalah:
+EMA_hari_ini = (Harga_hari_ini × K) + (EMA_kemarin × (1 - K))
+Di mana: K = 2 / (N + 1), dengan N = jumlah periode EMA (7, 30, atau 90 hari)
 """
 
 plt.figure(figsize=(14, 8))
@@ -197,7 +223,26 @@ plt.gca().yaxis.set_major_formatter(FuncFormatter(rupiah_format))
 plt.show()
 
 """
-#### 4. DATA PREPARATION
+### 4. Data Preparation
+
+Pada tahap ini, kita mempersiapkan data untuk pemodelan dengan melakukan:
+
+1. **Time-based Train-Test Split**: Membagi data menjadi 80% training dan 20% testing berdasarkan urutan waktu, yang penting dalam analisis time series untuk mencegah data leakage.
+
+2. **Feature Engineering**:
+   - Moving Averages (MA): Menghitung rata-rata pergerakan harga dengan periode 7 dan 30 hari
+   - Exponential Moving Averages (EMA): Menghitung EMA 7 hari yang memberikan bobot lebih pada data terbaru
+   - Volatilitas: Selisih antara harga tertinggi dan terendah dalam satu hari
+   - Volume Change: Persentase perubahan volume perdagangan
+   - Price Change: Persentase perubahan harga penutupan
+
+3. **Data Scaling**: 
+   - Menggunakan MinMaxScaler untuk menormalkan data harga ke rentang [0,1]
+   - Scaling sangat penting untuk model neural network seperti LSTM yang sensitif terhadap skala data
+   
+4. **Sequence Creation** (untuk LSTM):
+   - Membuat sequence 60 hari berurutan sebagai input
+   - Menggunakan hari ke-61 sebagai target prediksi
 """
 
 # Split data into training (80%) and testing (20%) sets
