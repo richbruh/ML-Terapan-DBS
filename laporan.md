@@ -125,7 +125,7 @@ c. Training Parameters
 a. Model Parameters
 - daily_seasonality: False
 - weekly_seasonality: True
-- yearly_seasonality: True
+- yearly_seasonality: False
 - changepoint_prior_scale: 0.05 (mengontrol fleksibilitas tren)
 - seasonality_prior_scale: 10.0 (mengontrol kekuatan komponen musiman)
 
@@ -182,7 +182,7 @@ Note: LSTM juga menunjukkan akurasi tinggi, dengan sedikit lag pada beberapa tit
 #### Prophet
 - **MAE**: 0.2162 
 - **RMSE**: 0.2901 
-- **Accuracy**: 64.03%
+- **Accuracy**: 64.03%`
 Prophet memberikan error yang jauh lebih tinggi dibandingkan dengan XGBoost dan LSTM. Pendekatan univariat dari Prophet, yang mengandalkan tren dan seasonalitas, tampaknya kurang mampu menangkap fluktuasi harga jangka pendek yang kompleks.
 
 Prophet menghasilkan prediksi yang lebih halus dan kurang akurat, gagal menangkap volatilitas dan fluktuasi harga yang tajam

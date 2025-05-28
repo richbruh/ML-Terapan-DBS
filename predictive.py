@@ -221,6 +221,8 @@ scaled_data = scaler.fit_transform(df['priceClose'].values.reshape(-1, 1))
 #### 5. Modelling
 
 ### Prophet Model
+
+Model berbasis dekomposisi time series yang mengidentifikasi tren dan pola musiman dalam data.
 """
 
 # Siapkan data Prophet (memerlukan kolom 'ds' dan 'y')
@@ -275,6 +277,8 @@ plt.show()
 
 """
 ### XGBoost Model
+
+<b>XGBoost (eXtreme Gradient Boosting)</b> adalah algoritma machine learning berbasis ensemble dari decision trees yang menerapkan prinsip gradient boosting. Algoritma ini banyak digunakan dalam kompetisi data science dan aplikasi praktis karena performanya yang sangat baik, efisiensi komputasi, dan kemampuannya dalam menangani berbagai jenis data termasuk data time series.
 """
 
 X_train = train_data[['priceOpen']]
@@ -321,6 +325,8 @@ plt.show()
 
 """
 ### LSTM Model
+
+<b>Long Short-Term Memory (LSTM)</b> adalah jenis arsitektur khusus dari Recurrent Neural Network (RNN) yang dirancang untuk mengatasi masalah "vanishing gradient" pada RNN standar. LSTM memiliki kemampuan untuk mengingat informasi penting dan melupakan informasi yang tidak relevan melalui mekanisme gerbang (gates) yang kompleks, membuatnya sangat cocok untuk analisis data sekuensial seperti time series harga cryptocurrency.
 """
 
 # Lakukan seed setting untuk konsistensi
