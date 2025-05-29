@@ -60,7 +60,7 @@ Analisis awal terhadap dataset menunjukkan beberapa karakteristik penting:
 
 - Korelasi Volume-Harga   : Terdapat korelasi antara volume perdagangan dan volatilitas harga yang dapat digunakan sebagai fitur tambahan dalam prediksi
 
-### Data Preparation
+## 4. Data Preparation
 1. Loading & Preprocessing Data
 - Data di-load dari file CSV menggunakan pandas (pd.read_csv('cardano.csv'))
 - Kolom-kolom timestamp (timeOpen, timeClose, timeHigh, timeLow) dikonversi dari Unix timestamp (milidetik) ke format datetime menggunakan pd.to_datetime()
@@ -102,26 +102,63 @@ Scaling untuk Neural Networks
 - Khusus untuk LSTM, data hasil scaling ditransformasi ke dalam format sequence (window 60 hari)
 - Menggunakan fungsi create_sequences() untuk menghasilkan pasangan input-output sekuensial
 - Setiap sequence berisi 60 hari data historis untuk memprediksi hari berikutnya
-### Modelling
-## LSTM
 
-a. Model Architecture: 
+## 5. Modelling
+
+### LSTM
+
+#### Cara Kerja Internal LSTM
+
+LSTM (Long Short-Term Memory) adalah arsitektur RNN khusus yang dirancang untuk mengatasi masalah vanishing gradient pada RNN standar melalui mekanisme gerbang (gates):
+
+1. **Forget Gate**: Menentukan informasi mana dari cell state sebelumnya yang perlu dibuang. Gate ini menganalisis h_{t-1} (output sebelumnya) dan x_t (input saat ini) untuk menghasilkan nilai antara 0 dan 1 untuk setiap angka dalam cell state:
+   
+   f_t = σ(W_f · [h_{t-1}, x_t] + b_f)
+   
+   Nilai 0 berarti "buang sepenuhnya" dan 1 berarti "simpan sepenuhnya".
+
+2. **Input Gate**: Menentukan nilai baru apa yang akan disimpan dalam cell state. Terdiri dari dua komponen:
+   
+   i_t = σ(W_i · [h_{t-1}, x_t] + b_i)  // Menentukan nilai mana yang diperbarui
+   C̃_t = tanh(W_C · [h_{t-1}, x_t] + b_C)  // Membuat vektor nilai kandidat baru
+
+3. **Cell State Update**: Memperbarui cell state lama menjadi cell state baru:
+   
+   C_t = f_t * C_{t-1} + i_t * C̃_t
+   
+   Persamaan ini menggabungkan "lupa" sebagian cell state lama dan menambahkan informasi baru.
+
+4. **Output Gate**: Menentukan output berdasarkan cell state yang telah diperbarui:
+   
+   o_t = σ(W_o · [h_{t-1}, x_t] + b_o)
+   h_t = o_t * tanh(C_t)
+
+Mekanisme gerbang inilah yang memungkinkan LSTM untuk:
+- Menyimpan informasi penting untuk waktu yang lama (mengatasi vanishing gradient)
+- Membuang informasi yang tidak relevan
+- Memperbarui state dengan informasi baru yang relevan
+- Menentukan informasi mana yang menjadi output
+
+Dalam prediksi harga Cardano, LSTM dapat "mengingat" pola-pola penting dalam data historis seperti tren, siklus pasar, dan reaksi terhadap kejadian eksternal, yang kemudian digunakan untuk memprediksi harga masa depan.
+
+#### Model Architecture: 
 - Input Layer: LSTM dengan 50 unit, return_sequences=True, input_shape=(60, 1)
 - Dropout Layer: Rate 0.2 (20%)
 - Hidden Layer: LSTM dengan 50 unit, return_sequences=False
 - Dropout Layer: Rate 0.2 (20%)
 - Output Layer: Dense dengan 1 unit
 
-b. Model Compilation
+#### Model Compilation
 - Optimizer: Adam (learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 - Loss Function: Mean Squared Error
 
-c. Training Parameters
+#### Training Parameters
 - Epochs: 100
 - Batch Size: 32
 - Validation Split: 0.2 (20%)
 - Early Stopping: patience=15, restore_best_weights=True, monitored val_loss
-## Prophet
+
+### Prophet
 a. Model Parameters
 - daily_seasonality: False
 - weekly_seasonality: True
@@ -139,9 +176,46 @@ a. Model Parameters
 
 - Forecast dilakukan, dan hasil prediksi diambil dari tail forecast untuk periode testing.
 
-## XGBoost
+### XGBoost
 
-a.  Model Parameters
+#### Cara Kerja Internal XGBoost
+
+XGBoost (eXtreme Gradient Boosting) adalah implementasi lanjutan dari algoritma gradient boosting yang bekerja melalui proses sekuensial:
+
+1. **Sequential Tree Building**: XGBoost membangun decision trees secara bertahap:
+   - Tree pertama memprediski nilai dasar
+   - Setiap tree berikutnya memprediksi residual (error) dari ensemble tree sebelumnya
+   - Model akhir adalah penjumlahan dari semua prediksi tree: ŷ = Σ f_i(x)
+
+2. **Optimasi Fungsi Objektif**: XGBoost mengoptimalkan fungsi objektif yang terdiri dari:
+   
+   Obj = Σ L(y_i, ŷ_i) + Σ Ω(f_i)
+   
+   Dimana:
+   - L adalah fungsi loss (seperti squared error)
+   - Ω adalah term regularisasi yang mengontrol kompleksitas model
+   - Fungsi ini menyeimbangkan antara akurasi prediksi dan kompleksitas model
+
+3. **Newton Boosting**: Menggunakan pendekatan Taylor expansion hingga orde kedua:
+   - Menghitung gradien (turunan pertama) untuk menentukan arah perbaikan
+   - Menghitung hessian (turunan kedua) untuk menentukan besarnya langkah perbaikan
+
+4. **Split Finding Algorithm**: Untuk setiap pemisahan pada pohon:
+   - Menghitung gain score: Gain = 1/2 * [GL²/HL + GR²/HR - (GL+GR)²/(HL+HR)] - γ
+   - Memilih split dengan gain tertinggi
+   - GL, GR adalah gradien pada child node kiri dan kanan
+   - HL, HR adalah hessian pada child node kiri dan kanan
+   - γ adalah parameter regularisasi
+
+5. **Pruning**: Pemangkasan pohon dilakukan secara bottom-up setelah pembangunan pohon untuk mengurangi overfitting.
+
+Untuk prediksi harga Cardano, mekanisme ini memungkinkan XGBoost untuk:
+- Menangkap hubungan non-linear kompleks antara harga sebelumnya dan harga masa depan
+- Mengidentifikasi pola penting dalam indikator teknikal
+- Meminimalkan overfitting melalui regularisasi
+- Memberikan prediksi yang akurat dengan komputasi efisien
+
+#### Model Parameters
 - objective: 'reg:squarederror'
 - n_estimators: 500
 - learning_rate: 0.01
@@ -150,16 +224,16 @@ a.  Model Parameters
 - colsample_bytree: 0.8
 - random_state: 42
 
-b. Training Parameters
+#### Training Parameters
 - Model di-fit menggunakan training data dengan monitoring performa via eval_set
 - Input features: 'priceOpen'
 - Target variable: 'priceClose'
 - Verbose mode dimatikan untuk output yang lebih bersih
 
 
-### Evaluation
+## 6. Evaluation
 
-#### XGBoost
+### XGBoost
 - **MAE**: 0.0265 
 - **RMSE**: 0.0469  
 - **Accuracy**: 95.59%
@@ -170,7 +244,7 @@ Note: XGBoost memberikan prediksi yang sangat akurat, hampir sepenuhnya mengikut
 
 
 
-#### LSTM
+### LSTM
 - **MAE**: 0.0282  
 - **RMSE**: 0.0464 
 - **Accuracy**: 95.34%
@@ -179,7 +253,7 @@ Model LSTM juga memiliki performa yang baik dengan metrik error yang hanya sedik
 
 Note: LSTM juga menunjukkan akurasi tinggi, dengan sedikit lag pada beberapa titik perubahan tajam
 
-#### Prophet
+### Prophet
 - **MAE**: 0.2162 
 - **RMSE**: 0.2901 
 - **Accuracy**: 64.03%`
