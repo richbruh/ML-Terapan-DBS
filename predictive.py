@@ -1,6 +1,6 @@
-#### Predictive Analaytics: Harga Cardano melalui Time Series Forecasting
-
 """
+#### Predictive Analytics: Harga Cardano melalui Time Series Forecasting
+
 Dataset Source: https://www.bitget.com/price/cardano/historical-data#download
 
 Predictive Analysis Time Series Forecasting
@@ -32,12 +32,12 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from prophet import Prophet
 import xgboost as xgb
 import tensorflow as tf
-import random
-import os
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.preprocessing import MinMaxScaler
+import random
+import os
 
 """
 ## 3. Data Understanding
@@ -61,6 +61,7 @@ df = pd.read_csv('cardano.csv')
 Exploratory Data Analysis adalah proses investigasi awal untuk melakukan analisis dari data secara karakteristik, pola, outlier, dan asumsi pada data.
 
 ### 3.2.1 EDA - Deskripsi Variabel 
+
 Dataset Cardano terdiri dari 2446 baris dan 9 kolom yang mencakup data historis harga Cardano (ADA) dengan granularitas harian. Data ini diambil dari Bitget Exchange dan mencakup periode dari tahun 2018 hingga 2025.
 """
 
@@ -82,17 +83,13 @@ Dataset berisi 9 variabel utama:
 | **volume** | Volume perdagangan Cardano | float64 |
 """
 
-# Convert Unix timestamps (milliseconds) to datetime format
+# Hitung Baris dan Kolom 
+print(f"Jumlah baris: {df.shape[0]}, Jumlah kolom: {df.shape[1]}")
+
 df['dateOpen'] = pd.to_datetime(df['timeOpen'], unit='ms')
 df['dateClose'] = pd.to_datetime(df['timeClose'], unit='ms')
 df['dateHigh'] = pd.to_datetime(df['timeHigh'], unit='ms')
 df['dateLow'] = pd.to_datetime(df['timeLow'], unit='ms')
-
-# Display basic info
-print("DataFrame shape:", df.shape)
-print("\nColumn names:", df.columns.tolist())
-print("\nDate range:", df['dateOpen'].min(), "to", df['dateOpen'].max())
-
 # Urutkan data berdasarkan tanggal untuk analisis time series
 df = df.sort_values('dateOpen')
 
@@ -142,12 +139,12 @@ df['range_percent'] = (df['priceHigh'] - df['priceLow']) / df['priceOpen'] * 100
 
 df = df.dropna()  # Menghapus baris dengan missing values
 print(f"\nTotal rows after dropping missing values: {df.shape[0]}")
-print(f"Total missing values: {df.isnull().sum().sum()}")
+print(f"Total missing values: {df.isnull().sum()}")
 
 """
 #### 3.2.3 Visualisasi Data Harga dan Tren
 
-**Analisis Pergerakan Harga Cardano**
+Analisis Pergerakan Harga Cardano
 Visualisasi data harga merupakan langkah penting dalam analisis time series karena membantu kita mengidentifikasi pola dan tren yang mungkin tidak terlihat dalam data mentah. Untuk memahami dinamika pergerakan harga Cardano (ADA), kita menggunakan dua jenis visualisasi utama dengan indikator teknikal:
 
 **Moving Averages (MA)**
@@ -162,13 +159,9 @@ Harga penutupan (Close Price): Menunjukkan nilai aktual harga Cardano setiap har
 EMA adalah variasi dari Moving Average yang memberikan bobot lebih besar pada data terkini, sehingga lebih responsif terhadap perubahan harga terbaru. Dalam visualisasi kedua, kita menampilkan:
 
 Harga penutupan (Close Price): Data harga aktual
-- EMA 7-hari: EMA dengan periode 7 hari, sangat responsif terhadap perubahan harga terbaru
-- EMA 30-hari: EMA dengan periode 30 hari untuk tren menengah
-- EMA 90-hari: EMA dengan periode 90 hari untuk tren jangka panjang
-
-Formula dasar untuk menghitung EMA adalah:
-EMA_hari_ini = (Harga_hari_ini × K) + (EMA_kemarin × (1 - K))
-Di mana: K = 2 / (N + 1), dengan N = jumlah periode EMA (7, 30, atau 90 hari)
+EMA 7-hari: EMA dengan periode 7 hari, sangat responsif terhadap perubahan harga terbaru
+EMA 30-hari: EMA dengan periode 30 hari untuk tren menengah
+EMA 90-hari: EMA dengan periode 90 hari untuk tren jangka panjang
 """
 
 plt.figure(figsize=(14, 8))
@@ -219,6 +212,15 @@ plt.ylabel('Price (IDR)', fontsize=14)
 plt.legend()
 plt.grid(True, alpha=0.3)
 
+# Conversion rate from USD to IDR (example rate, update as needed)
+usd_to_idr = 16410  # (Updated 20 Mei 2025)
+
+# Format y-axis to show Rupiah amounts
+def rupiah_format(x, pos):
+    # Convert to IDR then format
+    x_idr = x * usd_to_idr
+    return f'Rp{x_idr:,.0f}'
+
 plt.gca().yaxis.set_major_formatter(FuncFormatter(rupiah_format))
 plt.show()
 
@@ -226,23 +228,10 @@ plt.show()
 ### 4. Data Preparation
 
 Pada tahap ini, kita mempersiapkan data untuk pemodelan dengan melakukan:
-
-1. **Time-based Train-Test Split**: Membagi data menjadi 80% training dan 20% testing berdasarkan urutan waktu, yang penting dalam analisis time series untuk mencegah data leakage.
-
-2. **Feature Engineering**:
-   - Moving Averages (MA): Menghitung rata-rata pergerakan harga dengan periode 7 dan 30 hari
-   - Exponential Moving Averages (EMA): Menghitung EMA 7 hari yang memberikan bobot lebih pada data terbaru
-   - Volatilitas: Selisih antara harga tertinggi dan terendah dalam satu hari
-   - Volume Change: Persentase perubahan volume perdagangan
-   - Price Change: Persentase perubahan harga penutupan
-
-3. **Data Scaling**: 
-   - Menggunakan MinMaxScaler untuk menormalkan data harga ke rentang [0,1]
-   - Scaling sangat penting untuk model neural network seperti LSTM yang sensitif terhadap skala data
-   
-4. **Sequence Creation** (untuk LSTM):
-   - Membuat sequence 60 hari berurutan sebagai input
-   - Menggunakan hari ke-61 sebagai target prediksi
+- Konversi timestamp ke format datetime
+- Feature engineering untuk menambahkan fitur yang relevan dengan analisis harga cryptocurrency
+- Normalisasi data untuk model LSTM
+- Pembagian data menjadi training (80%) dan testing (20%)
 """
 
 # Split data into training (80%) and testing (20%) sets
@@ -251,6 +240,7 @@ train_data = df.iloc[:train_size]
 test_data = df.iloc[train_size:]
 
 # Feature engineering
+# Lakukan feature engineering pada seluruh dataset (df telah di-load sebelumnya)
 df['MA_7'] = df['priceClose'].rolling(window=7).mean()
 df['MA_30'] = df['priceClose'].rolling(window=30).mean()
 df['EMA_7'] = df['priceClose'].ewm(span=7, adjust=False).mean()
@@ -262,13 +252,29 @@ df['price_change'] = df['priceClose'].pct_change()
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaled_data = scaler.fit_transform(df['priceClose'].values.reshape(-1, 1))
 
+# Convert Unix timestamps (milliseconds) to datetime format
+df['dateOpen'] = pd.to_datetime(df['timeOpen'], unit='ms')
+df['dateClose'] = pd.to_datetime(df['timeClose'], unit='ms')
+df['dateHigh'] = pd.to_datetime(df['timeHigh'], unit='ms')
+df['dateLow'] = pd.to_datetime(df['timeLow'], unit='ms')
+
+# Display basic info
+print("DataFrame shape:", df.shape)
+print("\nColumn names:", df.columns.tolist())
+print("\nDate range:", df['dateOpen'].min(), "to", df['dateOpen'].max())
+
 """
-#### 5. Modelling
-
-### Prophet Model
-
+### 5.1 Prophet Model
 Model berbasis dekomposisi time series yang mengidentifikasi tren dan pola musiman dalam data.
 """
+
+# pip install prophet
+
+from prophet import Prophet
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 # Siapkan data Prophet (memerlukan kolom 'ds' dan 'y')
 prophet_df = pd.DataFrame({
@@ -282,12 +288,14 @@ train_df = prophet_df.iloc[:train_size]
 test_df = prophet_df.iloc[train_size:]
 
 # Buat dan fit model Prophet
+# More flexible model with higher changepoint_prior_scale
 prophet_model = Prophet(
     daily_seasonality=False,
-    weekly_seasonality=True,
-    yearly_seasonality=True,
-    changepoint_prior_scale=0.05,  # Kelenturan tren
-    seasonality_prior_scale=10.0   # Kekuatan musiman
+    weekly_seasonality=True, 
+    yearly_seasonality=False,
+    changepoint_prior_scale=0.05,  # Increased from 0.05
+    seasonality_prior_scale=1.0,  
+    seasonality_mode='multiplicative'  # Better for volatile data
 )
 prophet_model.fit(train_df)
 
@@ -302,14 +310,15 @@ prophet_preds = forecast.tail(len(test_df))['yhat'].values
 # Evaluasi model Prophet
 prophet_mae = mean_absolute_error(test_df['y'], prophet_preds)
 prophet_rmse = np.sqrt(mean_squared_error(test_df['y'], prophet_preds))
-prophet_accuracy = 100 - (prophet_mae / test_df['y'].mean() * 100)
-print(f"Prophet Model Results - MAE: {prophet_mae:.4f}, RMSE: {prophet_rmse:.4f}, Accuracy: {prophet_accuracy:.2f}%")
+accuracy = 100 - (prophet_mae / test_df['y'].mean() * 100)
+print(f"Prophet Model Results - MAE: {prophet_mae:.4f}, RMSE: {prophet_rmse:.4f}, Accuracy: {accuracy:.2f}%")
 
 # Plot komponen forecast (trend, musiman mingguan, dan musiman tahunan)
 fig = prophet_model.plot_components(forecast)
 plt.show()
 
 # Plot perbandingan nilai aktual vs prediksi
+# Gunakan kolom 'ds' dari test_df sebagai tanggal aktual
 plt.figure(figsize=(14, 7))
 plt.plot(test_df['ds'], test_df['y'], label='Actual Price', color='blue')
 plt.plot(test_df['ds'], prophet_preds, label='Prophet Prediction', color='red', linestyle='--')
@@ -321,15 +330,19 @@ plt.grid(True, alpha=0.3)
 plt.show()
 
 """
-### XGBoost Model
-
-<b>XGBoost (eXtreme Gradient Boosting)</b> adalah algoritma machine learning berbasis ensemble dari decision trees yang menerapkan prinsip gradient boosting. Algoritma ini banyak digunakan dalam kompetisi data science dan aplikasi praktis karena performanya yang sangat baik, efisiensi komputasi, dan kemampuannya dalam menangani berbagai jenis data termasuk data time series.
+## 5.2 XGBOOST Model
+XGBoost (eXtreme Gradient Boosting) adalah algoritma machine learning berbasis ensemble dari decision trees yang menerapkan prinsip gradient boosting. Algoritma ini banyak digunakan dalam kompetisi data science dan aplikasi praktis karena performanya yang sangat baik, efisiensi komputasi, dan kemampuannya dalam menangani berbagai jenis data termasuk data time series.
 """
+
+import xgboost as xgb
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+import matplotlib.pyplot as plt
 
 X_train = train_data[['priceOpen']]
 y_train = train_data['priceClose']
-X_test = test_data[['priceOpen']]
-y_test = test_data['priceClose']
+X_test  = test_data[['priceOpen']]
+y_test  = test_data['priceClose']
 
 # Buat dan fit model XGBoost
 xgb_model = xgb.XGBRegressor(
@@ -352,13 +365,13 @@ xgb_model.fit(
 xgb_preds = xgb_model.predict(X_test)
 
 # Evaluasi model XGBoost
-xgb_mae = mean_absolute_error(y_test, xgb_preds)
+xgb_mae  = mean_absolute_error(y_test, xgb_preds)
 xgb_rmse = np.sqrt(mean_squared_error(y_test, xgb_preds))
-xgb_accuracy = 100 - (xgb_mae / y_test.mean() * 100)
-print(f"XGBoost Model Results - MAE: {xgb_mae:.4f}, RMSE: {xgb_rmse:.4f}, Accuracy: {xgb_accuracy:.2f}%")
+accuracy = 100 - (xgb_mae / y_test.mean() * 100)
+print(f"XGBoost Model Results - MAE: {xgb_mae:.4f}, RMSE: {xgb_rmse:.4f}, Accuracy: {accuracy:.2f}%")
 
 # Plot perbandingan nilai aktual vs prediksi
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(10,6))
 plt.plot(test_data['dateOpen'], y_test, label='Actual', color='blue')
 plt.plot(test_data['dateOpen'], xgb_preds, label='Predicted', color='red', linestyle='--')
 plt.title("XGBoost: Actual vs Predicted Price")
@@ -369,10 +382,16 @@ plt.grid(alpha=0.3)
 plt.show()
 
 """
-### LSTM Model
+## 5.3 LSTM MODEL
 
-<b>Long Short-Term Memory (LSTM)</b> adalah jenis arsitektur khusus dari Recurrent Neural Network (RNN) yang dirancang untuk mengatasi masalah "vanishing gradient" pada RNN standar. LSTM memiliki kemampuan untuk mengingat informasi penting dan melupakan informasi yang tidak relevan melalui mekanisme gerbang (gates) yang kompleks, membuatnya sangat cocok untuk analisis data sekuensial seperti time series harga cryptocurrency.
+Long Short-Term Memory (LSTM) adalah jenis arsitektur khusus dari Recurrent Neural Network (RNN) yang dirancang untuk mengatasi masalah "vanishing gradient" pada RNN standar. LSTM memiliki kemampuan untuk mengingat informasi penting dan melupakan informasi yang tidak relevan melalui mekanisme gerbang (gates) yang kompleks, membuatnya sangat cocok untuk analisis data sekuensial seperti time series harga cryptocurrency.
 """
+
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.preprocessing import MinMaxScaler
 
 # Lakukan seed setting untuk konsistensi
 def set_seeds(seed=42):
@@ -397,19 +416,25 @@ def create_sequences(data, seq_length):
 # Prepare data for LSTM
 sequence_length = 60  # Use 60 days of historical data to predict the next day
 
-# Scale data - fit scaler hanya pada training data
+# Scale data
 scaler = MinMaxScaler(feature_range=(0, 1))
-train_scaled = scaler.fit_transform(train_data['priceClose'].values.reshape(-1, 1))
-test_scaled = scaler.transform(test_data['priceClose'].values.reshape(-1, 1))
+scaled_price = scaler.fit_transform(df['priceClose'].values.reshape(-1, 1))
 
-# Create sequences untuk training data
-X_train, y_train = create_sequences(train_scaled, sequence_length)
+# Create sequences
+X, y = create_sequences(scaled_price, sequence_length)
 
-# Create sequences untuk test data
-X_test, y_test = create_sequences(test_scaled, sequence_length)
+# Split into training and testing sets
+train_size_lstm = int(len(X) * 0.8)
+X_train = X[:train_size_lstm]
+y_train = y[:train_size_lstm]
+X_test = X[train_size_lstm:]
+y_test = y[train_size_lstm:]
 
-print(f"LSTM Training samples: {len(X_train)}")
-print(f"LSTM Testing samples: {len(X_test)}")
+print(f"Using existing train-test split:")
+print(f"Train data: {len(train_data)} samples")
+print(f"Test data: {len(test_data)} samples")
+
+print(f"Training samples: {len(X_train)}, Testing samples: {len(X_test)}")
 
 # Buat LSTM Model
 def create_lstm_model(sequence_length):
@@ -442,7 +467,6 @@ early_stopping = EarlyStopping(
     restore_best_weights=True,
     verbose=1
 )
-
 print("\nTraining LSTM Model...")
 history = lstm_model.fit(
     X_train, y_train,
@@ -450,37 +474,26 @@ history = lstm_model.fit(
     batch_size=32,
     validation_split=0.2,
     callbacks=[early_stopping],
-    verbose=1,
-    shuffle=False  # For consistency
+    verbose=1
 )
 
 # Make predictions
-print("\nMaking predictions...")
-lstm_preds = lstm_model.predict(X_test, verbose=0)
-
+lstm_preds = lstm_model.predict(X_test)
 # Inverse transform predictions and actual values
 lstm_preds_scaled = scaler.inverse_transform(lstm_preds)
-y_test_inv = scaler.inverse_transform(y_test.reshape(-1, 1))
+y_test_scaled = scaler.inverse_transform(y_test.reshape(-1, 1))
 
 # Evaluate LSTM model
-lstm_mae = mean_absolute_error(y_test_inv, lstm_preds_scaled)
-lstm_rmse = np.sqrt(mean_squared_error(y_test_inv, lstm_preds_scaled))
-lstm_accuracy = 100 - (lstm_mae / np.mean(y_test_inv) * 100)
+lstm_mae = mean_absolute_error(y_test_scaled, lstm_preds_scaled)
+lstm_rmse = np.sqrt(mean_squared_error(y_test_scaled, lstm_preds_scaled))
+lstm_accuracy = 100 - (lstm_mae / np.mean(y_test_scaled) * 100)
 
-# Display results
-print("\n" + "="*50)
-print("LSTM MODEL EVALUATION RESULTS")
-print("="*50)
-print(f"MAE (Mean Absolute Error): {lstm_mae:.4f} USD")
-print(f"RMSE (Root Mean Square Error): {lstm_rmse:.4f} USD")
-print(f"Accuracy: {lstm_accuracy:.2f}%")
-print(f"Mean Actual Price: {np.mean(y_test_inv):.4f} USD")
-print("="*50)
+print(f"LSTM Model Results - MAE: {lstm_mae:.4f}, RMSE: {lstm_rmse:.4f}, Accuracy: {lstm_accuracy:.2f}%")
 
 # Plot actual vs predicted values
 test_dates = df['dateOpen'].iloc[train_size + sequence_length:train_size + sequence_length + len(y_test)]
 plt.figure(figsize=(14, 7))
-plt.plot(test_dates, y_test_inv, label='Actual Price')
+plt.plot(test_dates, y_test_scaled, label='Actual Price')
 plt.plot(test_dates, lstm_preds_scaled, label='LSTM Prediction', linestyle='--')
 plt.title('LSTM: Actual vs Predicted Cardano Price')
 plt.xlabel('Date')
@@ -488,9 +501,3 @@ plt.ylabel('Price (USD)')
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.show()
-
-"""
-### Conclusion
-
-Kesimpulannya, model berbasis machine learning (XGBoost) dan deep learning (LSTM) jauh lebih efektif untuk memprediksi harga aset kripto yang memiliki volatilitas tinggi dibandingkan dengan model statistik tradisional (Prophet).
-"""

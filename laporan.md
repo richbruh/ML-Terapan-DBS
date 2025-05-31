@@ -26,8 +26,18 @@ Menyediakan insight tentang faktor-faktor yang paling mempengaruhi pergerakan ha
 3. **LSTM**: Arsitektur deep learning yang dirancang khusus untuk mengenali pola dalam sequence data. LSTM dapat menangkap dependensi jangka panjang dan pola kompleks dalam data harga cryptocurrency yang seringkali tidak tertangkap oleh model statistik tradisional.
 
 ## 3. Data Understanding
-**Sumber Data**: Sumber dan Format Data
-Dataset yang digunakan dalam proyek ini merupakan data historis harga Cardano yang dikumpulkan dari Bitget [https://www.bitget.com/price/cardano/historical-data#download]. Dataset mencakup informasi harga harian dengan total  data point dalam format CSV dengan struktur sebagai berikut:
+## 3. Data Understanding
+
+**Sumber Data**: Dataset yang digunakan dalam proyek ini merupakan data historis harga Cardano yang dikumpulkan dari [Bitget](https://www.bitget.com/price/cardano/historical-data#download). 
+
+**Jumlah Data**: Dataset terdiri dari **2446 baris** dan **9 kolom** yang mencakup data historis harga Cardano (ADA) dengan granularitas harian. Data ini mencakup periode dari tahun 2018 hingga 2025.
+
+**Kondisi Data Awal**:
+- **Missing Values**: Ditemukan 1 missing value pada fitur `returnPercentage`
+- **Data Duplikat**: Tidak ditemukan data duplikat (0 duplicates)
+- **Outlier**: Dataset menunjukkan volatilitas tinggi yang merupakan karakteristik normal dari data cryptocurrency
+
+**Tautan Sumber Data**: https://www.bitget.com/price/cardano/historical-data#download
 
 | timeOpen | timeClose | timeHigh | timeLow | priceOpen | priceHigh | priceLow | priceClose | volume |
 |----------|-----------|----------|---------|-----------|-----------|----------|------------|--------|
@@ -50,15 +60,23 @@ Dataset berisi 9 kolom yang menyediakan informasi lengkap tentang pergerakan har
 | **volume** | Volume perdagangan Cardano dalam USD selama periode tersebut |
 
 ### Eksplorasi Data Awal
-Analisis awal terhadap dataset menunjukkan beberapa karakteristik penting:
 
-- Rentang Waktu           : Dataset mencakup data harian dari periode 2018 hingga 2025 
+Analisis awal terhadap dataset menunjukkan karakteristik berikut:
 
-- Distribusi Harga        : Harga Cardano menunjukkan volatilitas yang signifikan dengan range antara $0 (Rp.0,00) hingga $3.1
+**Dimensi Dataset**:
+- Jumlah baris: 2446 record harian
+- Jumlah kolom: 9 variabel
+- Periode data: 2018 - 2025
 
-- Pola Musiman            : Terdapat indikasi pola musiman dalam data yang dapat dimanfaatkan untuk pemodelan time series
+**Kondisi Kualitas Data**:
+- Missing values: 1 nilai hilang pada kolom `returnPercentage` (0.04%)
+- Data duplikat: 0 (tidak ada duplikasi)
+- Data range: Lengkap tanpa gap temporal
 
-- Korelasi Volume-Harga   : Terdapat korelasi antara volume perdagangan dan volatilitas harga yang dapat digunakan sebagai fitur tambahan dalam prediksi
+**Karakteristik Harga**:
+- Rentang harga: $0.00 - $3.10 USD
+- Volatilitas tinggi: Karakteristik normal cryptocurrency
+- Volume perdagangan: Bervariasi signifikan
 
 ## 4. Data Preparation
 1. Loading & Preprocessing Data
@@ -159,12 +177,48 @@ Dalam prediksi harga Cardano, LSTM dapat "mengingat" pola-pola penting dalam dat
 - Early Stopping: patience=15, restore_best_weights=True, monitored val_loss
 
 ### Prophet
+
+#### Cara Kerja Internal Prophet
+
+Facebook Prophet menggunakan model dekomposisi aditif yang membagi time series menjadi komponen-komponen terpisah:
+
+**Formula Dasar Prophet**:
+y(t) = g(t) + s(t) + h(t) + ε_t
+
+Dimana:
+- **g(t)**: Komponen tren yang menangkap perubahan non-periodik jangka panjang
+- **s(t)**: Komponen musiman yang menangkap efek periodik (mingguan/tahunan)
+- **h(t)**: Efek holiday/event khusus
+- **ε_t**: Term error yang menangkap perubahan tidak teratur
+
+**Mekanisme Kerja Prophet**:
+
+1. **Trend Modeling**: Prophet menggunakan piecewise linear atau logistic growth model dengan changepoints yang secara otomatis terdeteksi untuk menangkap perubahan tren.
+
+2. **Seasonality Modeling**: Menggunakan Fourier series untuk memodelkan pola musiman:
+   - Seasonality mingguan: Menangkap pola berulang setiap 7 hari
+   - Seasonality tahunan: Menangkap pola berulang setiap 365 hari
+
+3. **Changepoint Detection**: Prophet secara otomatis mendeteksi titik-titik dimana tren berubah secara signifikan menggunakan sparse prior.
+
+4. **Bayesian Approach**: Model menggunakan pendekatan Bayesian dengan prior yang dapat disesuaikan untuk mengontrol:
+   - Fleksibilitas tren (changepoint_prior_scale)
+   - Kekuatan komponen musiman (seasonality_prior_scale)
+
+5. **Multiplicative Seasonality**: Dalam mode multiplicative, efek musiman dikalikan dengan tren daripada ditambahkan, cocok untuk data dengan amplitudo musiman yang berubah seiring waktu.
+
+Untuk prediksi harga Cardano, Prophet efektif dalam:
+- Menangkap tren jangka panjang dalam adopsi dan penggunaan
+- Mengidentifikasi pola musiman dalam perdagangan cryptocurrency
+- Menyesuaikan dengan perubahan tren pasar yang tiba-tiba
+- Memberikan interval kepercayaan untuk prediksi
+
 a. Model Parameters
 - daily_seasonality: False
 - weekly_seasonality: True
 - yearly_seasonality: False
 - changepoint_prior_scale: 0.05 (mengontrol fleksibilitas tren)
-- seasonality_prior_scale: 10.0 (mengontrol kekuatan komponen musiman)
+- seasonality_prior_scale: 1.0 (mengontrol kekuatan komponen musiman)
 
 - Data khusus Prophet disiapkan dalam format DataFrame dengan kolom ds (tanggal, dari df['dateOpen']) dan y (harga, dari df['priceClose']).
 
